@@ -2,12 +2,12 @@
 name = "png2saturn"
 version = "0.1.0"
 edition = "2021"
-description = "A tool to create ctb files from png's. Suited to expose pcbs on a Elegoo Saturn."
+description = "A tool to create single layer ctb files from png's. Suited for pcb exposure with resin 3d printers."
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-catibo = { path = "../catibo"}
+catibo = { git = "https://github.com/cbiffle/catibo.git"}
 png = "0.17.5"
 byteorder = "1.4.3"
 clap = { version = "3.2.14", features = ["derive"] }

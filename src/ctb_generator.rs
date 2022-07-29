@@ -1,4 +1,4 @@
-use std::fs::File;
+use std::{fs::File, path::PathBuf};
 
 use byteorder::{LittleEndian, WriteBytesExt};
 use catibo::{
@@ -38,88 +38,56 @@ pub fn ctb_from_custom() -> Builder {
     builder
 }
 
-pub fn insert_sample_previews(builder: &mut Builder, debug_level: u8) {
+pub fn add_small_preview(builder: &mut Builder, file: PathBuf, debug_level: u8) {
     if debug_level > 0 {
-        println!("Generating preview images");
+        println!("Generating small preview image");
     }
-    {
-        let file = File::open("small-preview.png").unwrap();
-        let decoder = Decoder::new(file);
-        let mut reader = decoder.read_info().unwrap();
-        let mut buf = vec![0; reader.output_buffer_size()];
-        // Read the next frame. An APNG might contain multiple frames.
-        let info = reader.next_frame(&mut buf).unwrap();
-        // Grab the bytes of the image.
-        let img_bytes = &buf[..info.buffer_size()];
+    builder.small_preview(200, 125, generate_rle15_data(file, debug_level));
+}
 
-        if debug_level > 0 {
-            println!("Small preview info: {:?}", info);
-        }
+pub fn add_large_preview(builder: &mut Builder, file: PathBuf, debug_level: u8) {
+    if debug_level > 0 {
+        println!("Generating large preview image");
+    }
+    builder.large_preview(400, 300, generate_rle15_data(file, debug_level));
+}
 
-        let mut rgb_tuples = vec![(0, 0, 0); info.buffer_size() / 3];
+fn generate_rle15_data(file: PathBuf, debug_level: u8) -> Vec<u8>{
+    let file = File::open(file).unwrap();
+    let decoder = Decoder::new(file);
+    let mut reader = decoder.read_info().unwrap();
+    let mut buf = vec![0; reader.output_buffer_size()];
+    // Read the next frame. An APNG might contain multiple frames.
+    let info = reader.next_frame(&mut buf).unwrap();
+    // Grab the bytes of the image.
+    let img_bytes = &buf[..info.buffer_size()];
 
-        for i in 0..info.buffer_size() / 3 {
-            rgb_tuples[i] = (
-                img_bytes[i * 3 + 0],
-                img_bytes[i * 3 + 1],
-                img_bytes[i * 3 + 2],
-            );
-        }
-        let mut pixels = Vec::new();
-        let mut rgb_tuples = rgb_tuples.into_iter().peekable();
-        while rgb_tuples.peek() != None {
-            let run = encode_rle15(&mut rgb_tuples).unwrap();
-            match run {
-                Run12::Single(x) => {
-                    pixels.write_u16::<LittleEndian>(x).unwrap();
-                }
-                Run12::Double(x, n) => {
-                    pixels.write_u16::<LittleEndian>(x).unwrap();
-                    pixels.write_u16::<LittleEndian>(n).unwrap();
-                }
+    if debug_level > 0 {
+        println!("Small preview info: {:?}", info);
+    }
+
+    let mut rgb_tuples = vec![(0, 0, 0); info.buffer_size() / 3];
+
+    for i in 0..info.buffer_size() / 3 {
+        rgb_tuples[i] = (
+            img_bytes[i * 3 + 0],
+            img_bytes[i * 3 + 1],
+            img_bytes[i * 3 + 2],
+        );
+    }
+    let mut pixels = Vec::new();
+    let mut rgb_tuples = rgb_tuples.into_iter().peekable();
+    while rgb_tuples.peek() != None {
+        let run = encode_rle15(&mut rgb_tuples).unwrap();
+        match run {
+            Run12::Single(x) => {
+                pixels.write_u16::<LittleEndian>(x).unwrap();
+            }
+            Run12::Double(x, n) => {
+                pixels.write_u16::<LittleEndian>(x).unwrap();
+                pixels.write_u16::<LittleEndian>(n).unwrap();
             }
         }
-        builder.small_preview(200, 125, pixels);
     }
-
-    {
-        let file = File::open("large-preview.png").unwrap();
-        let decoder = Decoder::new(file);
-        let mut reader = decoder.read_info().unwrap();
-        let mut buf = vec![0; reader.output_buffer_size()];
-        // Read the next frame. An APNG might contain multiple frames.
-        let info = reader.next_frame(&mut buf).unwrap();
-        // Grab the bytes of the image.
-        let img_bytes = &buf[..info.buffer_size()];
-
-        if debug_level > 0 {
-            println!("Large preview info: {:?}", info);
-        }
-
-        let mut rgb_tuples = vec![(0, 0, 0); info.buffer_size() / 3];
-
-        for i in 0..info.buffer_size() / 3 {
-            rgb_tuples[i] = (
-                img_bytes[i * 3 + 0],
-                img_bytes[i * 3 + 1],
-                img_bytes[i * 3 + 2],
-            );
-        }
-
-        let mut pixels = Vec::new();
-        let mut rgb_tuples = rgb_tuples.into_iter().peekable();
-        while rgb_tuples.peek() != None {
-            let run = encode_rle15(&mut rgb_tuples).unwrap();
-            match run {
-                Run12::Single(x) => {
-                    pixels.write_u16::<LittleEndian>(x).unwrap();
-                }
-                Run12::Double(x, n) => {
-                    pixels.write_u16::<LittleEndian>(x).unwrap();
-                    pixels.write_u16::<LittleEndian>(n).unwrap();
-                }
-            }
-        }
-        builder.large_preview(400, 300, pixels);
-    }
+    pixels
 }

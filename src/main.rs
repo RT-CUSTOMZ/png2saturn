@@ -21,20 +21,33 @@ enum Corner {
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]
 struct Cli {
-    #[clap(value_parser, value_name = "PNG_INPUT")]
+    /// PNG image input (has to be smaller or equal to 3840x2400)
+    #[clap(value_parser, value_name = "INPUT")]
     png: PathBuf,
 
-    #[clap(value_parser, value_name = "CTB_OUTPUT")]
+    /// CTB file name to write to
+    #[clap(value_parser, value_name = "OUTPUT")]
     output: PathBuf,
 
+    /// Choose the corner in which the image will be placed
     #[clap(short, long, value_enum, default_value_t = Corner::NorthWest)]
     corner: Corner,
 
+    /// How many pixels the image will be offset from the chosen corner
     #[clap(short, long, value_parser, default_value_t = 0)]
     x_padding: usize,
 
+    /// How many pixels the image will be offset from the chosen corner
     #[clap(short, long, value_parser, default_value_t = 0)]
     y_padding: usize,
+
+    /// Set the small preview image (200x125 pixel png)
+    #[clap(short, long, value_parser, value_name = "PREVIEW_IMAGE")]
+    preview_small: Option<PathBuf>,
+
+    /// Set the large preview image (400x300 pixel png)
+    #[clap(short, long, value_parser, value_name = "PREVIEW_IMAGE")]
+    preview_large: Option<PathBuf>,
 
     #[clap(short, long, value_parser, default_value_t = 90.0)]
     exposure: f32,
@@ -82,9 +95,16 @@ fn main() {
     }
 
     let mut builder = ctb_from_custom();
-    insert_sample_previews(&mut builder, cli.debug);
-    builder.encryption_key(1741386203);
-    builder.encryption_mode(0xF);
+
+    if let Some(file) = cli.preview_small {
+        add_small_preview(&mut builder, file, cli.debug);
+    }
+    if let Some(file) = cli.preview_large {
+        add_large_preview(&mut builder, file, cli.debug);
+    }
+
+    builder.encryption_key(1741386203);     // hardcoded encryption key thats known to work (no encryption didn't work)
+    builder.encryption_mode(0xF);           // also some hardcoded parameter which seems to work like this
     builder.layer(1.6, cli.exposure, 0.0, rle7_slice);
     builder.exposure_s(cli.exposure);
     builder.bot_exposure_s(cli.exposure);
