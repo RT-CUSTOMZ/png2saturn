@@ -12,10 +12,10 @@ If you don't already have a png of your layout ready, you need to generate one.
 We use [gerbv](https://gerbv.github.io/) for this purpose.
 
 ```bash
-$ gerbv -D 508 -b '#FFFFFF' -f '#000000FF' -x png -o layout.png copper_layer.gbr
+$ gerbv -D 508 -B 0 -b '#FFFFFF' -f '#000000FF' -x png -o layout.png copper_layer.gbr
 ```
 generates a bw png of the specified gerber.
-(`-D 508` sets the dpi for our specific printer, -b / -f the background/foreground colors).
+(`-D 508` sets the dpi for our specific printer, -b / -f the background/foreground colors, -B the border).
 
 ```bash
 $ png2saturn -e 90 -x 40 -y 40 layout.png layout.ctb
