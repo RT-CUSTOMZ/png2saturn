@@ -6,7 +6,7 @@ use catibo::{
     rle::{encode_rle15, Run12},
     Magic,
 };
-use png::Decoder;
+use png::{ColorType, Decoder};
 
 pub fn ctb_from_custom() -> Builder {
     let mut builder = Builder::for_revision(Magic::CTB, 2); // catibo doesn't seem to support version 3
@@ -42,39 +42,61 @@ pub fn add_small_preview(builder: &mut Builder, file: PathBuf, debug_level: u8) 
     if debug_level > 0 {
         println!("Generating small preview image");
     }
-    builder.small_preview(200, 125, generate_rle15_data(file, debug_level));
+    if let Some(data) = generate_rle15_data(file, debug_level) {
+        builder.small_preview(200, 125, data);
+    }
 }
 
 pub fn add_large_preview(builder: &mut Builder, file: PathBuf, debug_level: u8) {
     if debug_level > 0 {
         println!("Generating large preview image");
     }
-    builder.large_preview(400, 300, generate_rle15_data(file, debug_level));
+    if let Some(data) = generate_rle15_data(file, debug_level) {
+        builder.large_preview(400, 300, data);
+    }
 }
 
-fn generate_rle15_data(file: PathBuf, debug_level: u8) -> Vec<u8>{
-    let file = File::open(file).unwrap();
+fn generate_rle15_data(path: PathBuf, debug_level: u8) -> Option<Vec<u8>> {
+    let file_name = path.file_name().unwrap().to_owned();
+    let file = File::open(path).unwrap();
     let decoder = Decoder::new(file);
     let mut reader = decoder.read_info().unwrap();
     let mut buf = vec![0; reader.output_buffer_size()];
     // Read the next frame. An APNG might contain multiple frames.
-    let info = reader.next_frame(&mut buf).unwrap();
+    let frame_info = reader.next_frame(&mut buf).unwrap();
     // Grab the bytes of the image.
-    let img_bytes = &buf[..info.buffer_size()];
+    let img_bytes = &buf[..frame_info.buffer_size()];
 
     if debug_level > 0 {
-        println!("Small preview info: {:?}", info);
+        println!("Preview info: {:?}", frame_info);
     }
 
-    let mut rgb_tuples = vec![(0, 0, 0); info.buffer_size() / 3];
-
-    for i in 0..info.buffer_size() / 3 {
-        rgb_tuples[i] = (
-            img_bytes[i * 3 + 0],
-            img_bytes[i * 3 + 1],
-            img_bytes[i * 3 + 2],
-        );
+    let mut rgb_tuples: Vec<(u8, u8, u8)> = Vec::new();
+    match frame_info.color_type {
+        ColorType::Grayscale => {
+            rgb_tuples.reserve(frame_info.buffer_size());
+            for v in img_bytes {
+                rgb_tuples.push((*v, *v, *v));
+            }
+        }
+        ColorType::Rgb => {
+            rgb_tuples.append(&mut vec![(0, 0, 0); frame_info.buffer_size() / 3]);
+            for i in 0..frame_info.buffer_size() / 3 {
+                rgb_tuples[i] = (
+                    img_bytes[i * 3 + 0],
+                    img_bytes[i * 3 + 1],
+                    img_bytes[i * 3 + 2],
+                );
+            }
+        }
+        _ => {
+            println!("Warning: Unsupported image format, skipping preview.");
+            println!("{} has an unsupported format.", file_name.to_string_lossy());
+            println!("Only grayscale or rgb supported at the moment.");
+            return None;
+        }
     }
+
     let mut pixels = Vec::new();
     let mut rgb_tuples = rgb_tuples.into_iter().peekable();
     while rgb_tuples.peek() != None {
@@ -89,5 +111,5 @@ fn generate_rle15_data(file: PathBuf, debug_level: u8) -> Vec<u8>{
             }
         }
     }
-    pixels
+    Some(pixels)
 }

@@ -2,7 +2,7 @@ use std::{fs::File, path::PathBuf};
 
 use catibo::output::encode_rle7_slice;
 use clap::Parser;
-use png::Decoder;
+use png::{ColorType, Decoder};
 
 mod ctb_generator;
 use ctb_generator::*;
@@ -42,11 +42,11 @@ struct Cli {
     y_padding: usize,
 
     /// Set the small preview image (200x125 pixel png)
-    #[clap(short, long, value_parser, value_name = "PREVIEW_IMAGE")]
+    #[clap(short = 's', long, value_parser, value_name = "PREVIEW_IMAGE")]
     preview_small: Option<PathBuf>,
 
     /// Set the large preview image (400x300 pixel png)
-    #[clap(short, long, value_parser, value_name = "PREVIEW_IMAGE")]
+    #[clap(short = 'l', long, value_parser, value_name = "PREVIEW_IMAGE")]
     preview_large: Option<PathBuf>,
 
     #[clap(short, long, value_parser, default_value_t = 90.0)]
@@ -71,27 +71,47 @@ fn main() {
         if cli.debug > 0 {
             println!("PNG info: {:?}", info);
         }
-        if info.width > RESOLUTION_X as u32 && info.height > RESOLUTION_Y as u32 {
+        let max_x_size = RESOLUTION_X - cli.x_padding;
+        let max_y_size = RESOLUTION_Y - cli.y_padding;
+        if info.width > max_x_size as u32 && info.height > max_y_size as u32 {
             panic!("PCB to large!");
         }
 
         // Grab the bytes of the image.
         let img_bytes = &buf[..info.buffer_size()];
 
-        let mut img_bw = vec![0; info.buffer_size() / 3];
+        match info.color_type {
+            ColorType::Grayscale => {
+                let layer = position_bw_image(
+                    img_bytes.to_vec(),
+                    info.width.try_into().unwrap(),
+                    info.height.try_into().unwrap(),
+                    cli.x_padding,
+                    cli.y_padding,
+                    cli.corner,
+                );
+                encode_rle7_slice(layer.into_iter().peekable(), 1741386203, 0, &mut rle7_slice);
+            }
+            ColorType::Rgb => {
+                let mut img_bw = vec![0; info.buffer_size() / 3];
 
-        for i in 0..info.buffer_size() / 3 {
-            img_bw[i] = img_bytes[i * 3];
+                for i in 0..info.buffer_size() / 3 {
+                    img_bw[i] = img_bytes[i * 3];
+                }
+                let layer = position_bw_image(
+                    img_bw,
+                    info.width.try_into().unwrap(),
+                    info.height.try_into().unwrap(),
+                    cli.x_padding,
+                    cli.y_padding,
+                    cli.corner,
+                );
+                encode_rle7_slice(layer.into_iter().peekable(), 1741386203, 0, &mut rle7_slice);
+            }
+            _ => panic!(
+                "Error: Unsupported image type, only Grayscale and RGB supported at the moment."
+            ),
         }
-        let layer = position_bw_image(
-            img_bw,
-            info.width.try_into().unwrap(),
-            info.height.try_into().unwrap(),
-            cli.x_padding,
-            cli.y_padding,
-            cli.corner,
-        );
-        encode_rle7_slice(layer.into_iter().peekable(), 1741386203, 0, &mut rle7_slice);
     }
 
     let mut builder = ctb_from_custom();
@@ -103,8 +123,8 @@ fn main() {
         add_large_preview(&mut builder, file, cli.debug);
     }
 
-    builder.encryption_key(1741386203);     // hardcoded encryption key thats known to work (no encryption didn't work)
-    builder.encryption_mode(0xF);           // also some hardcoded parameter which seems to work like this
+    builder.encryption_key(1741386203); // hardcoded encryption key thats known to work (no encryption didn't work)
+    builder.encryption_mode(0xF); // also some hardcoded parameter which seems to work like this
     builder.layer(1.6, cli.exposure, 0.0, rle7_slice);
     builder.exposure_s(cli.exposure);
     builder.bot_exposure_s(cli.exposure);
