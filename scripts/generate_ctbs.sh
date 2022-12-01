@@ -1,5 +1,13 @@
 #!/bin/bash
 
+if [ "$3" != '' ]
+then
+    E=$3
+    echo "Exposure set to ${E}s"
+else
+    E=80
+    echo "Using standard exposure of 80s"
+fi
 
 #Bottom side
 if [ "$1" != '' ]
@@ -12,7 +20,7 @@ then
     convert $b_png -scale 200x125 -background white -gravity center -extent 200x125 p_small_$b_png
     convert $b_png -scale 400x300 -background white -gravity center -extent 400x300 p_large_$b_png
 
-    png2saturn -x 50 -y 30 -c south-west -e 100 -s p_small_$b_png -l p_large_$b_png $b_png $b_ctb 
+    png2saturn -x 50 -y 30 -c south-west -e $E -s p_small_$b_png -l p_large_$b_png $b_png $b_ctb 
 else
     echo "Missing input filename(s)"
 fi
@@ -28,5 +36,5 @@ then
     convert $f_png -scale 200x125 -background white -gravity center -extent 200x125 p_small_$f_png
     convert $f_png -scale 400x300 -background white -gravity center -extent 400x300 p_large_$f_png
 
-    png2saturn -x 50 -y 30 -c south-east -e 100 -s p_small_$f_png -l p_large_$f_png $f_png $f_ctb 
+    png2saturn -x 50 -y 30 -c south-east -e $E -s p_small_$f_png -l p_large_$f_png $f_png $f_ctb 
 fi

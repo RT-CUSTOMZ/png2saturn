@@ -26,5 +26,7 @@ In this case with a exposure of 90 seconds and a offset of 40 pixels from the de
 
 Run `$ png2saturn --help` for all available options.
 
+Also checkout the [scripts](./scripts) for examples how to generate previews.
+
 ## Credits
 Big thanks to [cbiffle](https://github.com/cbiffle) for the epic reverse engineering of the ctb format and the provided rust library ([catibo](https://github.com/cbiffle/catibo)).
