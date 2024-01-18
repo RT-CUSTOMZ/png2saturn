@@ -24,9 +24,9 @@ pub fn ctb_from_custom() -> Builder {
     builder.bot_pwm_level(255);
     builder.bot_lift_dist_mm(5.0);
     builder.bot_lift_speed_mmpm(1200.0);
-    builder.lift_dist_mm(5.0);
-    builder.lift_speed_mmpm(1200.0);
-    builder.retract_speed_mmpm(120.0);
+    builder.lift_dist_mm(2.0);
+    builder.lift_speed_mmpm(2200.0);
+    builder.retract_speed_mmpm(1200.0);
     builder.print_volume_ml(42.0);
     builder.bot_light_off_time_s(5.0);
 

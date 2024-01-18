@@ -1,6 +1,6 @@
 [package]
 name = "png2saturn"
-version = "1.0.0"
+version = "1.0.1"
 edition = "2021"
 description = "A tool to create single layer ctb files from png's. Suited for pcb exposure with resin 3d printers."
 

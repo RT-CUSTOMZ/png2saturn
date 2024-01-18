@@ -58,7 +58,8 @@ struct Cli {
 }
 fn main() {
     let cli = Cli::parse();
-    let mut rle7_slice: Vec<u8> = Vec::new();
+    // let mut rle7_slice: Vec<u8> = Vec::new();
+    let layer: Vec<u8>;
 
     {
         let file = File::open(cli.png).unwrap();
@@ -82,7 +83,7 @@ fn main() {
 
         match info.color_type {
             ColorType::Grayscale => {
-                let layer = position_bw_image(
+                layer = position_bw_image(
                     img_bytes.to_vec(),
                     info.width.try_into().unwrap(),
                     info.height.try_into().unwrap(),
@@ -90,7 +91,7 @@ fn main() {
                     cli.y_padding,
                     cli.corner,
                 );
-                encode_rle7_slice(layer.into_iter().peekable(), 1741386203, 0, &mut rle7_slice);
+                // encode_rle7_slice(layer.into_iter().peekable(), 1741386203, 0, &mut rle7_slice);
             }
             ColorType::Rgb => {
                 let mut img_bw = vec![0; info.buffer_size() / 3];
@@ -98,7 +99,7 @@ fn main() {
                 for i in 0..info.buffer_size() / 3 {
                     img_bw[i] = img_bytes[i * 3];
                 }
-                let layer = position_bw_image(
+                layer = position_bw_image(
                     img_bw,
                     info.width.try_into().unwrap(),
                     info.height.try_into().unwrap(),
@@ -106,7 +107,7 @@ fn main() {
                     cli.y_padding,
                     cli.corner,
                 );
-                encode_rle7_slice(layer.into_iter().peekable(), 1741386203, 0, &mut rle7_slice);
+                // encode_rle7_slice(layer.into_iter().peekable(), 1741386203, 0, &mut rle7_slice);
             }
             _ => panic!(
                 "Error: Unsupported image type, only Grayscale and RGB supported at the moment."
@@ -125,9 +126,23 @@ fn main() {
 
     builder.encryption_key(1741386203); // hardcoded encryption key thats known to work (no encryption didn't work)
     builder.encryption_mode(0xF); // also some hardcoded parameter which seems to work like this
-    builder.layer(1.6, cli.exposure, 0.0, rle7_slice);
-    builder.exposure_s(cli.exposure);
-    builder.bot_exposure_s(cli.exposure);
+
+    // builder.layer(1.6, cli.exposure, 0.0, rle7_slice);
+    // builder.exposure_s(cli.exposure);
+    // builder.bot_exposure_s(cli.exposure);
+
+    for i in 0..((cli.exposure / 2.0) as usize) {
+        let mut rle7_slice = Vec::new();
+        encode_rle7_slice(
+            layer.iter().map(|x| *x).peekable(),
+            1741386203,
+            i as u32,
+            &mut rle7_slice,
+        );
+        builder.layer(i as f32, 2.0, 5.0, rle7_slice);
+    }
+    builder.exposure_s(2.0);
+    builder.bot_exposure_s(2.0);
 
     let out = File::create(cli.output).unwrap();
     builder.write(out).unwrap();
